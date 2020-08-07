@@ -1,0 +1,11 @@
+certifi==2020.4.5.1
+chardet==3.0.4
+fuzzywuzzy==0.18.0
+idna==2.9
+numpy==1.18.4
+python-Levenshtein==0.12.0
+pytest==5.4.2
+requests==2.23.0
+slack-progress==0.5
+urllib3==1.25.9
+websocket-client==0.44.0
