@@ -76,7 +76,7 @@ class slack_notifications:
         """
         if self.internet_on():
             # Initialisation des attributs.
-            self.str_token = 'xoxp-373789764883-922785241123-1082532198405-f64b75acf49d0abf9d034f7bd06e1a68'
+            self.str_token = ''
             self.dict_headers = None
             self.dict_users = None
             self.slack_progress = None
