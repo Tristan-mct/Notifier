@@ -1,0 +1,5 @@
+fuzzywuzzy==0.17.0
+nest-asyncio==1.2.3
+slackclient==2.5.0
+slack-progress==0.5
+pytest==5.3.5
