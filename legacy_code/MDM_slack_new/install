@@ -1,7 +1,0 @@
-#!/bin/bash
-pip install -r requirements.txt
-
-path=$(sed -nr '/Location/p' < <(pip show pytest) | cut -d' ' -f2)
-
-cp -r MDMBot $path
-
