@@ -1,61 +1,12 @@
-# Notifier
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri May 15 17:49:53 2020.
 
-## Downloading and installing the module
+@author: Tristan Muscat
+"""
 
-First download the whole thing and unzip it. Then navigate to the package directory. Typically :
 
-`$ cd ~/Downloads/Terminal`
-
-You can use the installer :
-
-`$ ./install`
-
-Or you can paste the "terminal" directory in the site-package of your python installation. The ./install file take care of that and install the package in your current python environment while also install all the dependencies.
-
-## Setting up your slack app
-
-Now you need to set up a slack application that will be able to use the slack API and this interface. You need to start here :
-
-https://api.slack.com/
-
-Create an app and get your two tokens :
-```
-Bot User OAuth Access Token : "xoxb-XXXX"
-OAuth Access Token : "xoxp-XXXX"
-```
-
-Now you need to register these two tokens as environment variables like so :
-```
-BOTAUTH_TOKEN="xoxb-XXXX"
-OAUTH_TOKEN="xoxp-XXXX"
-```
-
-The second token is used only to clean public channels in slack, so NotifBot can work without it for the most part.
-
-Now you need to grant your app the following permissions :
-
-```
-channels:history
-channels:read
-chat:write
-chat:write.public
-im:history
-im:read
-im:write
-incoming-webhook
-users:read
-users:write
-```
-
-They are available in the "OAuth & Permissions" your slack application page.
-
-You can give only specific permissions if you want but some features might not work.
-
-## How to use terminal
-
-Content of the `demo.py` file :
-
-```Python
 # %% Packages.
 from notifbot import NotifBot
 import time
@@ -150,4 +101,3 @@ notifier.progress_value('spb_main', 3)
 notifier.progress_log('spb_main', 'Done', bl_stack_log=False)
 
 # notifier.progress_delete('spb_main')
-```

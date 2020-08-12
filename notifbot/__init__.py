@@ -6,4 +6,4 @@ Created on Fri Jul 17 09:09:48 2020.
 @author: Tristan Muscat
 """
 
-from .notifier import slack_notifications
+from .notifier import NotifBot

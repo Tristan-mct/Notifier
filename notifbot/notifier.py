@@ -11,121 +11,145 @@ Created on Sat Apr 27 18:02:18 2019.
 # Import et librairies
 # =====================================================================================================================
 
-
-import socket                                    # Pour verifier si internet est on.
-from socket import gaierror
-import requests                                  # Pour interroger l'API slack.
+import requests                                  # Make requests to the slack API.
 
 import numpy as np
-import json                                      # Traitement des réponses de l'API slack.
-from fuzzywuzzy import process                   # Pour chercher une personne dans la liste des utilisateurs.
-from slack_progress import SlackProgress         # Pour afficher une barre d'avancement sur slack.
+import json                                      # Parse the slack API's response.
+from fuzzywuzzy import process                   # Find a user with approximate knowledge of their name.
+from slack_progress import SlackProgress         # Use a progress bar.
 
-from terminal import InputManager as term
+from terminal import InputManager as term        # Input when multiple users have similar names.
 
+import os
 
-# =============================================================================
-# Erreurs spécifique au slack bot.
-# =============================================================================
+# =====================================================================================================================
+# Slackbot specific errors.
+# =====================================================================================================================
 
 
 class SlackbotException(Exception):
-    """Les erreurs du slackbot."""
+    """Slackbot erros."""
 
     def __init__(self, message):
-        """Constructeur de l'erreur."""
+        """Error constructor."""
         super(Exception, self).__init__(message)
 
+# =============================================================================
+# Hybrid methods
+# =============================================================================
+
+
+class hybridmethod:
+    """Allow to declare a class and instance version of the same method."""
+
+    def __init__(self, fclass, finstance=None, doc=None):
+        self.fclass = fclass
+        self.finstance = finstance
+        self.__doc__ = doc or fclass.__doc__
+        # support use on abstract base classes
+        self.__isabstractmethod__ = bool(
+            getattr(fclass, '__isabstractmethod__', False)
+        )
+
+    def classmethod(self, fclass):
+        """Class method version of the function."""
+        return type(self)(fclass, self.finstance, None)
+
+    def instancemethod(self, finstance):
+        """Instance method version of the function."""
+        return type(self)(self.fclass, finstance, self.__doc__)
+
+    def __get__(self, instance, cls):
+        """Retreive the right version."""
+        if instance is None or self.finstance is None:
+            # either bound to the class, or no instance method available
+            return self.fclass.__get__(cls, None)
+        return self.finstance.__get__(instance, cls)
+
 # =====================================================================================================================
-# Module d'envoi de notifications slack.
+# Slack notification interface.
 # =====================================================================================================================
 
 
-class slack_notifications:
+class NotifBot:
     """Pour créer un objet de notifications.
 
-    Attributes
-    ----------
-    str_oauth: str
-        Le token d'authentification
+    Class Attributes
+    ----------------
     str_botauth: str
-        Second token d'authentification.
+        Slack Bot Authentification Token. Retreived from environement variables.
     dict_headers: dict
-        Un dictionnaire contenant les headers nécessaire pour utiliser l'API slack.
-    dict_users: dict
-        Le dictionnaire qui contient l'ensemble des utilisateurs avec le channel qui correspond à chacun.
-    slack_progress:
-        Un objet permettant d'initialiser des progress bars sur slack.
-    dict_sbars: dict
-        Un dictionnaire de progress bars nominative qui permet d'en gérer plusieurs à la foi.
+        Simple formatted header used to querry slack API.
 
+    Instance Attributes
+    -------------------
+    lst_users: list
+        A list of all users and associated channels, also public channels. Each user is represented in a dictionnary
+        with basic information and the ID used to send a message.
+    dict_sbars: dict
+        A dictionnary used to store and manage multiple progress bars.
     """
+
+    str_botauth = os.environ['BOTAUTH_TOKEN']
+    dict_headers = {
+        'Authorization': f'Bearer {str_botauth}',
+        'Content-type': 'application/json',
+        }
 
 # =====================================================================================================================
 # Initialisation.
 # =====================================================================================================================
 
-    def __init__(self, bl_sec_internet=False):
-        """Fonction d'intialisation du notifier.
+    def __init__(self):
+        """Initialize a notifier.
 
-        Le notifier s'initialise vide, puisque le token permet de récuperer toutes les informations nécessaires
-        et celui-ci est fixe.
-
-        Raises
-        ------
-        SlackbotException
-            cette étape ne peut pas fonctionner sans internet.
-
+        Creating an instance of a notifier instead of using exclusively class methods allow to keep track of
+        progress bars, and also load the list of users and channels only once.
         """
-        if self.internet_on():
-            # Initialisation des attributs.
-            self.str_oauth = 'xoxp-614072072449-608980257026-620413139360-74ee33331891dc0cd292bcdc86d9820f'
-            self.str_botauth = 'xoxb-614072072449-619464860033-nE0RelB1YaABQUAIXBwHqKUm'
-            self.dict_headers = None
-            self.dict_users = None
-            self.slack_progress = None
-            self.dict_sbars = {}
-            self.bl_sec_internet = bl_sec_internet
+        # Initialisation of the attributes.
+        self.dict_users = None
+        self.dict_sbars = {}
 
-            # On set le header et la table des utilisateurs.
-            self._set_headers(asbot=True)
-            self._set_users()
-            self._set_channels()
-        else:
-            raise SlackbotException('Erreur de connexion.')
+        # Setting the user list.
+        self._set_users()
+        self._set_channels()
+        self._set_public_channels()
+
+# =====================================================================================================================
+# Simple class method to send a message
+# =====================================================================================================================
+
+    @hybridmethod
+    def notify(cls, str_message, str_channel, str_user=None):
+        """Allow to send a message via the slack API.
+
+        This is a classmethod, it can be used to send a one-shot notification. More complex usage should require
+        to declare an instance NotifBot. The 'str_user' is here because hybridmethods need to have the same arguments
+        for all their versions, but it cannot be used in the class method version.
+
+        Parameters
+        ----------
+        str_message: str
+            The message to send.
+        str_channel: str
+            The specific ID of the channel where to send the message.
+        str_user: str
+            Not in use in this version of the function. Default is None.
+        """
+        data = f'{{"channel":"{str_channel}", "text":"{str_message}"}}'
+        requests.post('https://slack.com/api/chat.postMessage', headers=NotifBot.dict_headers, data=data)
 
 # =====================================================================================================================
 # Setters / Getters
 # =====================================================================================================================
 
-    def _set_headers(self, asbot=True):
-        """Fonction d'intialisation du header.
-
-        Le header s'initialise simplement avec le token, pas besoin de plus pour le moment.
-
-        """
-        if asbot:
-            self.dict_headers = {
-                'Authorization': 'Bearer {}'.format(self.str_botauth),
-                'Content-type': 'application/json',
-                }
-        else:
-            self.dict_headers = {
-                'Authorization': 'Bearer {}'.format(self.str_oauth),
-                'Content-type': 'application/json',
-                }
-
     def _set_users(self):
-        """Fonction d'initialisation de la table des utilisateurs.
-
-        On récupère la table des utilisateurs avec leurs informations de base.
-
-        """
-        # On récupère la users.list et on parse le résultat, puis on range le tout dans un dictionnaire
-        response = requests.post('https://slack.com/api/users.list', headers=self.dict_headers)
+        """Initialize the list of users."""
+        # Getting the users.list from slack API and parsing the result.
+        response = requests.post('https://slack.com/api/users.list', headers=NotifBot.dict_headers)
         res = json.loads(response.content.decode("utf-8"))['members']
 
-        # On range tout dans un bon vieux dict.
+        # Storing all important information in a list of dictionnaries.
         self.lst_users =\
             [{'ID': elt['id'], 'Team_ID': elt['team_id'], 'Name': elt['name'],
               'Real_name': elt['real_name'], 'Channel': np.nan}
@@ -135,368 +159,282 @@ class slack_notifications:
              for elt in res]
 
     def _set_channels(self):
-        """Fonctio d'ajout des channels à la table des utilisateurs.
-
-        Pour chaque utilisateur, on ajoute l'ID du channel, car c'est ce qui est utilisé pour intéragir avec slack.
-
-        """
-        # On récupère la liste des "im" (Instant Messages) de l'utilisateur.
-        response = requests.post('https://slack.com/api/im.list', headers=self.dict_headers)
+        """Add, for each user, the channel to send them messages."""
+        # Getting the im.list from the slack API and parsing the result.
+        response = requests.post('https://slack.com/api/im.list', headers=NotifBot.dict_headers)
         res = json.loads(response.content.decode("utf-8"))['ims']
 
         lst_channels = [{'ID': elt['user'], 'Channel': elt['id']} for elt in res]
 
-        # /!\ On ajoute les channel IDs au df_users cependant, les ID pour les utilisateurs avec qui on n'a jamais
-        # parlé n'existe pas ! il faut donc envoyer au moins un premier message depuis l'application.
+        # For each channel, we look up a user with the same ID, when their is a match, the channel is set
+        # in the list of users.
         for channel in lst_channels:
             for user in self.lst_users:
                 if user['ID'] == channel['ID']:
                     user['Channel'] = channel['Channel']
 
+    def _set_public_channels(self):
+        """Add every public channel."""
+        # Getting the channels.list from the slack API and parsing the result.
+        response = requests.post('https://slack.com/api/channels.list', headers=NotifBot.dict_headers)
+        res = json.loads(response.content.decode("utf-8"))['channels']
+
+        # Storgin everything in a dictionnary.
+        lst_public_channels =\
+            [{'ID': elt['created'], 'Name': elt['name_normalized'],
+              'Real_name': elt['name'], 'Channel': elt['id']}
+             for elt in res]
+
+        # The dictionnary is added to the list of users, the keys to search and to get a channel ID are the same.
+        self.lst_users = self.lst_users + lst_public_channels
+
 # =====================================================================================================================
-# Récuperation chaînes et messages
+# Getting channels and messages
 # =====================================================================================================================
 
-    def get_list_messages(self, str_channel=None, str_user=None):
-        """Fonction pour obtenir la liste des messages envoyés à un utilisateur.
+    def get_list_messages(self, str_channel=None, str_user=None, bl_public=False):
+        """Retreive the list of messages on a channel. Used mostly to purge a channel.
 
         Parameters
         ----------
         str_channel : str, optional
-            L'ID du channel. The default is None.
+            The channel ID. The default is None.
         str_user : str, optional
-            Le nom de l'utilisateur. The default is None.
-
-        Raises
-        ------
-        SlackbotException
-            cette étape ne peut pas fonctionner sans internet.
+            The name of the user. The default is None.
+        bl_public: boolean
+            Is the channel public or not.
 
         Returns
         -------
         dict_messages : dict
-            La liste des messages, dans un dictionnaire.
-
+            A dictionnary with every message in the channel.
         """
-        if self.internet_on(self.bl_sec_internet):
-            # Si l'ID du channel n'est pas connu, on le récupère à partir du nom de l'utilisateur.
-            if str_channel is None:
-                str_channel = self.get_user_id(str_user)
+        # If a channel ID is not provided, we use the user name to get a channel ID.
+        if str_channel is None:
+            str_channel = self.get_user_id(str_user)
 
-            # l'appel à l'API classique ne fonctionne pas, je ne sais pas pourquoi alors on utilise directement l'URL.
-            response = requests.post('https://slack.com/api/conversations.history?token={}&channel={}'.
-                                     format(self.str_oauth, str_channel))
-            dict_messages = json.loads(response.content.decode("utf-8"))['messages']
+        # Retreiving the messages with slack API.
+        if bl_public:
+            # This token is not a class variable so the user has the choice not to use it.
+            str_token = os.environ['OAUTH_TOKEN']
         else:
-            raise SlackbotException('Erreur de connexion.')
+            str_token = NotifBot.str_botauth
+        response =\
+            requests.post(f'https://slack.com/api/conversations.history?token={str_token}&channel={str_channel}')
+        dict_messages = json.loads(response.content.decode("utf-8"))['messages']
 
         return dict_messages
 
     def get_user_id(self, str_user):
-        """Fonction d'obtention de l'ID du channel d'un user à partir de son nom.
+        """Get a user's ID from their name.
 
         Parameters
         ----------
         str_user : str
-            Le nom de l'utilisateur.
-
-        Raises
-        ------
-        SlackbotException
-            Si le nom demandé ne correspond à rien dans la base.
+            The user's name.
 
         Returns
         -------
-        str
-            L'ID du channel lié à l'utilisateur.
-
+        str_channel : str
+            The channel ID associated to the user.
         """
-        # On cherche le nom de l'utilisateur dans la liste des noms grâce à un "fuzzy search".
+        # We search trough the user list with fuzzysearch, retreiving several possible matchs.
         lst_user_names = [elt['Real_name'] for elt in self.lst_users if isinstance(elt['Real_name'], str)]
         lst_best_names = process.extractBests(str_user, lst_user_names, score_cutoff=80)
 
-        # Si on a plus qu'un nom qui correspond alors on demande un choix.
+        # If we get more than one match, the user is prompted to pick the right one.
         if len(lst_best_names) > 1:
-            print("Plusieurs noms correspondent à {}.".format(lst_best_names))
+            print(f'Serveral match for the name {str_user}.')
             for i in range(0, len(lst_best_names)):
-                print('{} : {}'.format(str(i + 1), lst_best_names[i][0]))
-            print('{} : Quitter'.format(str(i + 2)))
-            index_name = term.force_read(term.read_numeric, "Choix : ", True, 1, len(lst_best_names) + 1)
+                print(f'{str(i + 1)} : {lst_best_names[i][0]}')
+            print(f'{str(i + 2)} : Quit')
+            index_name = term.force_read(term.read_numeric, 'Your pick : ', True, 1, len(lst_best_names) + 1)
             if index_name == (i + 2):
                 raise SlackbotException('No match for {} user.'.format(str_user))
             str_user = lst_best_names[index_name - 1][0]
-        # Si il n'y a qu'un nom alors on considère que c'est le bon.
+        # If their is only one match, then we get their channel ID.
         elif len(lst_best_names) == 1:
             str_user = lst_best_names[0][0]
-        # Si aucun nom n'est trouvé, alors ça plante.
+        # If no match, then error.
         else:
-            raise SlackbotException('No match for {} user.'.format(str_user))
+            raise SlackbotException(f'No match for {str_user} user.')
 
-        # On retourne l'ID du channel.
+        # Looking up the channel ID in the user list.
         str_channel = [elt['Channel'] for elt in self.lst_users if elt['Real_name'] == str_user][0]
 
+        # If the user exist but no channel is open with them.
         if not isinstance(str_channel, str):
-            raise SlackbotException("Aucune conversation n'existe avec {}.".format(str_user))
+            raise SlackbotException(f'No channel openned with {str_user}.')
 
         return str_channel
 
 # =====================================================================================================================
-# Envoi et suppression de messages
+# Sending and deleting messages
 # =====================================================================================================================
 
-    def notify(self, str_message, str_channel=None, str_user=None):
-        """Fonction d'envoie d'un message à un utilisateur.
+    @notify.instancemethod
+    def notify(self, str_message: str, str_channel=None, str_user=None):
+        """Send a message to a user or on a channel.
 
         Parameters
         ----------
         str_message: str
-            Le message à envoyer.
+            The message to send.
         str_channel: str
-            L'ID du channel ou envoyer le message.
+            The ID of the user or the public channel.
         str_user : str
-            Le nom de l'utilisateur à qui envoyer le message, si on a pas son ID.
-
-        Raises
-        ------
-        SlackbotException
-            cette étape ne peut pas fonctionner sans internet.
-
+            If the channel ID is unknown then the user's name can be used to get it.
         """
-        if self.internet_on(self.bl_sec_internet):
-            # Si l'ID du channel n'est pas connu, on le récupère à partir du nom de l'utilisateur.
-            if str_channel is None:
-                str_channel = self.get_user_id(str_user)
+        # If the channel ID is unknown then the user's name can be used to get it.
+        if str_channel is None:
+            str_channel = self.get_user_id(str_user)
 
-            # On construit la requette et on envoie le message.
-            data = '{"channel":"' + str_channel + '", "text":"' + str_message + '"}'
-            requests.post('https://slack.com/api/chat.postMessage', headers=self.dict_headers, data=data)
-        else:
-            raise SlackbotException('Erreur de connexion.')
+        # Send a message through the slack API.
+        data = f'{{"channel":"{str_channel}", "text":"{str_message}"}}'
+        requests.post('https://slack.com/api/chat.postMessage', headers=NotifBot.dict_headers, data=data)
 
     def progress(self, str_name, str_title, int_total, str_channel=None, str_user=None):
-        """Fonction d'envoie d'un message à un utilisateur.
+        """Create a progress bar.
 
         Parameters
         ----------
         str_name: str
-            Le nom de la progress bar.
+            The name of the progress bar. Used to reference it once created.
         str_title: str
-            Le titre de la progress bar (celui qui est affiché dans slack).
+            The displayed title of the progress bar.
         str_channel: str
-            L'ID du channel ou envoyer le message.
+            The ID of the user or the public channel.
         str_user : str
-            Le nom de l'utilisateur à qui envoyer le message, si on a pas son ID.
-
-        Raises
-        ------
-        SlackbotException
-            cette étape ne peut pas fonctionner sans internet.
-
+            If the channel ID is unknown then the user's name can be used to get it.
         """
-        if self.internet_on(self.bl_sec_internet):
-            # Si l'ID du channel n'est pas connu, on le récupère à partir du nom de l'utilisateur.
-            if str_channel is None:
-                str_channel = self.get_user_id(str_user)
+        # If the channel ID is unknown then the user's name can be used to get it.
+        if str_channel is None:
+            str_channel = self.get_user_id(str_user)
 
-            # On ajoute la progress bar, avec son nom et son total.
-            self.slack_progress = SlackProgress(self.str_botauth, str_channel)
-            self.dict_sbars[str_name] = {'pbar': self.slack_progress.new(total=int_total), 'title': str_title}
-            self.dict_sbars[str_name]['pbar'].log(str_title)
-        else:
-            raise SlackbotException('Erreur de connexion.')
+        # Adding the progress bar with it's title and total.
+        progress_bar = SlackProgress(NotifBot.str_botauth, str_channel)
+        self.dict_sbars[str_name] = {'pbar': progress_bar.new(total=int_total), 'title': str_title}
+        self.dict_sbars[str_name]['pbar'].log(str_title)
 
     def progress_set_title(self, str_name, str_title):
-        """Fonction de set du titre de la progress bar.
+        """Set the progress bar title. Used mostly to change it.
 
         Parameters
         ----------
         str_name: str
-            Le nom de la progress bar.
+            The name of the progress bar. Used to reference it once created.
         str_title: str
-            Le nouveau titre de la progress bar (celui qui est affiché dans slack).
-
+            The displayed title of the progress bar.
         """
         self.dict_sbars[str_name]['title'] = str_title
 
     def progress_update(self, str_name, int_value):
-        """Fonction d'update d'une progress bar.
+        """Update a prgress bar.
 
         Parameters
         ----------
-        str_name : str
-            Le nom de la progress bar (il s'agit du nom affiché et du nom par lequel il est référencé).
-        int_value : int
-            La valeur à ajouter.
-
-        Raises
-        ------
-        SlackbotException
-            cette étape ne peut pas fonctionner sans internet.
-
+        str_name: str
+            The name of the progress bar. Used to reference it once created.
+        int_value: int
+            The value to add.
         """
-        if self.internet_on(self.bl_sec_internet):
-            self.dict_sbars[str_name]['pbar'].pos = round((self.dict_sbars[str_name]['pbar'].pos
-                                                           + (int_value * 100
-                                                              / self.dict_sbars[str_name]['pbar'].total)), 2)
-        else:
-            raise SlackbotException('Erreur de connexion.')
+        self.dict_sbars[str_name]['pbar'].pos =\
+            round((self.dict_sbars[str_name]['pbar'].pos +
+                   (int_value * 100 / self.dict_sbars[str_name]['pbar'].total)), 2)
 
     def progress_value(self, str_name, int_value):
-        """Fonction de set de la valeur d'une progress bar.
+        """Set the progress bar to a specific value.
 
         Parameters
         ----------
-        str_name : str
-            Le nom de la progress bar (il s'agit du nom affiché et du nom par lequel il est référencé).
-        int_value : int
-            La valeur à set.
-
-        Raises
-        ------
-        SlackbotException
-            cette étape ne peut pas fonctionner sans internet.
-
+        str_name: str
+            The name of the progress bar.
+        int_value: int
+            The value where to set the progress bar.
         """
-        if self.internet_on(self.bl_sec_internet):
-            self.dict_sbars[str_name]['pbar'].pos = round((int_value * 100
-                                                           / self.dict_sbars[str_name]['pbar'].total), 2)
-        else:
-            raise SlackbotException('Erreur de connexion.')
+        self.dict_sbars[str_name]['pbar'].pos =\
+            round((int_value * 100 / self.dict_sbars[str_name]['pbar'].total), 2)
 
     def progress_log(self, str_name, str_log, bl_stack_log=True):
-        """Fonction de log d'un evenement sur une progress bar.
+        """Log an event into the progress bar (display under the title in slack).
 
         Parameters
         ----------
-        str_name : str
-            Le nom de la progress bar (il s'agit du nom affiché et du nom par lequel il est référencé).
+        str_name: str
+            The name of the progress bar.
         str_log : str
-            Le message à logger.
+            The message to log.
         bl_stack_log: bool
-            Indique si on doit effacer les log precedent sur cette progress bar.
-
-        Raises
-        ------
-        SlackbotException
-            cette étape ne peut pas fonctionner sans internet.
-
+            Should we erease all previous logged messages.
         """
-        if self.internet_on(self.bl_sec_internet):
-            # On ajoute le message à la progress bar.
-            self.dict_sbars[str_name]['pbar'].log("{} - {}".format(self.dict_sbars[str_name]['title'], str_log))
+        # The message is added to the progress bar.
+        self.dict_sbars[str_name]['pbar'].log(f"{self.dict_sbars[str_name]['title']} - {str_log}")
 
-            # Si on le décide, on supprime les messages loggés avant.
-            if not bl_stack_log:
-                self.dict_sbars[str_name]['pbar']._msg_log = [self.dict_sbars[str_name]['pbar']._msg_log[-1]]
-                self.dict_sbars[str_name]['pbar']._update()
-        else:
-            raise SlackbotException('Erreur de connexion.')
+        # If we decide so, every logged message added before the new one is deleted.
+        if not bl_stack_log:
+            self.dict_sbars[str_name]['pbar']._msg_log = [self.dict_sbars[str_name]['pbar']._msg_log[-1]]
+            self.dict_sbars[str_name]['pbar']._update()
 
     def progress_delete(self, str_name):
-        """Fonction de suppression d'une progress bar.
+        """Delete a progress bar.
 
         Parameters
         ----------
-        str_name : str
-            Le nom de la progress bar à supprimer.
-
-        Raises
-        ------
-        SlackbotException
-            cette étape ne peut pas fonctionner sans internet.
-
+        str_name: str
+            The name of the progress bar.
         """
-        if self.internet_on(self.bl_sec_internet):
-            # Pour supprimer une progress bar, il faut récuperer son time stamp
-            str_ts = self.dict_sbars[str_name]['pbar'].msg_ts
-            data = '{"channel":"' + self.dict_sbars[str_name]['pbar'].channel_id + '", "ts":"' + str_ts + '"}'
-            requests.post('https://slack.com/api/chat.delete', headers=self.dict_headers, data=data)
-        else:
-            raise SlackbotException('Erreur de connexion.')
+        # In order to delete a message (a progress bar in this case), we need its time stamp
+        str_ts = self.dict_sbars[str_name]['pbar'].msg_ts
+        data = f"""{{"channel":"{self.dict_sbars[str_name]['pbar'].channel_id}", "ts":"{str_ts}"}}"""
+        requests.post('https://slack.com/api/chat.delete', headers=NotifBot.dict_headers, data=data)
 
-    def purge_chat(self, str_channel=None, str_user=None):
-        """Fonction de purge d'un chat.
+    def purge_chat(self, str_channel=None, str_user=None, bl_public=False):
+        """Purge an entier chat.
 
         Parameters
         ----------
         str_channel: str
-            L'ID du channel ou envoyer le message.
+            The ID of the user or the public channel.
         str_user : str
-            Le nom de l'utilisateur à qui envoyer le message, si on a pas son ID.
-
-        Raises
-        ------
-        SlackbotException
-            cette étape ne peut pas fonctionner sans internet.
-
+            If the channel ID is unknown then the user's name can be used to get it.
+        bl_public: boolean
+            Is the channel public or not.
         """
-        if self.internet_on(self.bl_sec_internet):
-            # Si l'ID du channel n'est pas connu, on le récupère à partir du nom de l'utilisateur.
-            if str_channel is None:
-                str_channel = self.get_user_id(str_user)
+        # If the channel ID is unknown then the user's name can be used to get it.
+        if str_channel is None:
+            str_channel = self.get_user_id(str_user)
 
-            # On récupère la liste des messages pour le channel donné.
-            lst_messages = self.get_list_messages(str_channel)
+        # Getting the list of all message on the channel.
+        lst_messages = self.get_list_messages(str_channel, bl_public=bl_public)
 
-            # Pour chaque message, on utilise son time stamp pour le supprimer.
-            for message in lst_messages:
-                str_ts = message['ts']
-                data = '{"channel":"' + str_channel + '", "ts":"' + str_ts + '"}'
-                requests.post('https://slack.com/api/chat.delete', headers=self.dict_headers, data=data)
-        else:
-            raise SlackbotException('Erreur de connexion.')
-
-    def pop_chat(self, str_channel=None, str_user=None, index=0):
-        """Fonction de suppression d'un message unique.
-
-        Parameters
-        ----------
-        str_channel: str
-            L'ID du channel ou envoyer le message.
-        str_user : str
-            Le nom de l'utilisateur à qui envoyer le message, si on a pas son ID.
-        index: int
-            L'index du message à supprimer (en partant de la fin).
-
-        Raises
-        ------
-        SlackbotException
-            cette étape ne peut pas fonctionner sans internet.
-
-        """
-        if self.internet_on(self.bl_sec_internet):
-            # Si l'ID du channel n'est pas connu, on le récupère à partir du nom de l'utilisateur.
-            if str_channel is None:
-                str_channel = self.get_user_id(str_user)
-
-            # On récupère la liste des messages pour le channel donné.
-            lst_messages = self.get_list_messages(str_channel)
-
-            # Pour récupère le time stamp du message à supprimer et on le supprimer.
-            str_ts = lst_messages[index]['ts']
+        # For each message, we use its time stamp to delete it.
+        for message in lst_messages:
+            str_ts = message['ts']
             data = '{"channel":"' + str_channel + '", "ts":"' + str_ts + '"}'
-            requests.post('https://slack.com/api/chat.delete', headers=self.dict_headers, data=data)
-        else:
-            raise SlackbotException('Erreur de connexion.')
+            requests.post('https://slack.com/api/chat.delete', headers=NotifBot.dict_headers, data=data)
 
-# =====================================================================================================================
-# Envoi de message sans passer par un objet
-# =====================================================================================================================
+    def pop_chat(self, str_channel=None, str_user=None, index=0, bl_public=False):
+        """Delete one message by index.
 
-    @staticmethod
-    def internet_on(bl_sec_internet=True):
-        """Methode qui verifie si une connexion a internet existe ou non."""
-        if bl_sec_internet:
-            bl_internet_is_on = False
-            try:
-                # Connexion à l'hôte
-                socket.create_connection(("www.google.com", 80))
-                bl_internet_is_on = True
-            except ConnectionError:
-                bl_internet_is_on = False
-            except gaierror:
-                bl_internet_is_on = False
+        Parameters
+        ----------
+        str_channel: str
+            The ID of the user or the public channel.
+        str_user : str
+            If the channel ID is unknown then the user's name can be used to get it.
+        index: int
+            The index of the message to delete (starting at the latest).
+        bl_public: boolean
+            Is the channel public or not.
+        """
+        # If the channel ID is unknown then the user's name can be used to get it.
+        if str_channel is None:
+            str_channel = self.get_user_id(str_user)
 
-            return bl_internet_is_on
-        else:
-            return True
+        # Getting the list of all message on the channel.
+        lst_messages = self.get_list_messages(str_channel, bl_public=bl_public)
+
+        # To delete a specific message, we need its time stamp.
+        str_ts = lst_messages[index]['ts']
+        data = '{"channel":"' + str_channel + '", "ts":"' + str_ts + '"}'
+        requests.post('https://slack.com/api/chat.delete', headers=NotifBot.dict_headers, data=data)
