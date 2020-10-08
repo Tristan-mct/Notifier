@@ -17,6 +17,7 @@ import numpy as np
 import json                                      # Parse the slack API's response.
 from fuzzywuzzy import process                   # Find a user with approximate knowledge of their name.
 from slack_progress import SlackProgress         # Use a progress bar.
+import time
 
 from terminal import InputManager as term        # Input when multiple users have similar names.
 
@@ -412,6 +413,7 @@ class NotifBot:
             str_ts = message['ts']
             data = '{"channel":"' + str_channel + '", "ts":"' + str_ts + '"}'
             requests.post('https://slack.com/api/chat.delete', headers=NotifBot.dict_headers, data=data)
+            time.sleep(0.1)
 
     def pop_chat(self, str_channel=None, str_user=None, index=0, bl_public=False):
         """Delete one message by index.
