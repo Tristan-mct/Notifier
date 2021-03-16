@@ -415,6 +415,10 @@ class NotifBot:
             requests.post('https://slack.com/api/chat.delete', headers=NotifBot.dict_headers, data=data)
             time.sleep(0.1)
 
+        lst_messages = self.get_list_messages(str_channel, bl_public=bl_public)
+        if len(lst_messages) > 0:
+            self.purge_chat(str_channel=str_channel, str_user=str_user, bl_public=bl_public)
+
     def pop_chat(self, str_channel=None, str_user=None, index=0, bl_public=False):
         """Delete one message by index.
 
