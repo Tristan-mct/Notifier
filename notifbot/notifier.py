@@ -162,8 +162,8 @@ class NotifBot:
     def _set_channels(self):
         """Add, for each user, the channel to send them messages."""
         # Getting the im.list from the slack API and parsing the result.
-        response = requests.post('https://slack.com/api/im.list', headers=NotifBot.dict_headers)
-        res = json.loads(response.content.decode("utf-8"))['ims']
+        response = requests.post('https://slack.com/api/conversations.list?types=im', headers=NotifBot.dict_headers)
+        res = json.loads(response.content.decode("utf-8"))['channels']
 
         lst_channels = [{'ID': elt['user'], 'Channel': elt['id']} for elt in res]
 
@@ -177,7 +177,7 @@ class NotifBot:
     def _set_public_channels(self):
         """Add every public channel."""
         # Getting the channels.list from the slack API and parsing the result.
-        response = requests.post('https://slack.com/api/channels.list', headers=NotifBot.dict_headers)
+        response = requests.post('https://slack.com/api/conversations.list', headers=NotifBot.dict_headers)
         res = json.loads(response.content.decode("utf-8"))['channels']
 
         # Storgin everything in a dictionnary.
@@ -413,11 +413,11 @@ class NotifBot:
             str_ts = message['ts']
             data = '{"channel":"' + str_channel + '", "ts":"' + str_ts + '"}'
             requests.post('https://slack.com/api/chat.delete', headers=NotifBot.dict_headers, data=data)
-            time.sleep(0.1)
+            time.sleep(0.01)
 
-        lst_messages = self.get_list_messages(str_channel, bl_public=bl_public)
-        if len(lst_messages) > 0:
-            self.purge_chat(str_channel=str_channel, str_user=str_user, bl_public=bl_public)
+        # lst_messages = self.get_list_messages(str_channel, bl_public=bl_public)
+        # if len(lst_messages) > 0:
+        #     self.purge_chat(str_channel=str_channel, str_user=str_user, bl_public=bl_public)
 
     def pop_chat(self, str_channel=None, str_user=None, index=0, bl_public=False):
         """Delete one message by index.
