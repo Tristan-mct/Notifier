@@ -19,7 +19,7 @@ from fuzzywuzzy import process                   # Find a user with approximate 
 from slack_progress import SlackProgress         # Use a progress bar.
 import time
 
-from terminal import InputManager as term        # Input when multiple users have similar names.
+import inputmanager as im        # Input when multiple users have similar names.
 
 import os
 
@@ -249,7 +249,7 @@ class NotifBot:
             for i in range(0, len(lst_best_names)):
                 print(f'{str(i + 1)} : {lst_best_names[i][0]}')
             print(f'{str(i + 2)} : Quit')
-            index_name = term.force_read(term.read_numeric, 'Your pick : ', True, 1, len(lst_best_names) + 1)
+            index_name = im.force_read(im.read_numeric, 'Your pick : ', True, 1, len(lst_best_names) + 1)
             if index_name == (i + 2):
                 raise SlackbotException('No match for {} user.'.format(str_user))
             str_user = lst_best_names[index_name - 1][0]

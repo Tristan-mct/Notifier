@@ -14,7 +14,7 @@ import time
 # %% Sending messages.
 
 # A single message can be sent using only the notify class method :
-NotifBot.notify('Sending a message using the class method.', str_channel='DJ2A424H1')
+NotifBot.notify('Sending a message using the class method.', str_channel='D02JZP30F0U')
 
 # But you need to know the exact channl ID.
 
@@ -34,7 +34,7 @@ notifier.notify("Sending a message on a public channel.", str_user='projet')
 str_channel = notifier.get_user_id('Tristan')
 
 # Send a message with the channel ID.
-notifier.notify("Sending a message using the channel ID.", str_channel='DJ2A424H1')
+notifier.notify("Sending a message using the channel ID.", str_channel=str_channel)
 
 # %% Deleting messages.
 
