@@ -1,5 +1,10 @@
 # Notifier
 
+![Tests](https://github.com/tristanmsct/Notifier/actions/workflows/tests.yml/badge.svg)
+![Coverage](https://raw.githubusercontent.com/tristanmsct/Notifier/master/coverage.svg)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![PyPI version](https://badge.fury.io/py/notifier.svg)](https://badge.fury.io/py/notifier)
+
 ## Downloading and installing the module
 
 First download the whole thing and unzip it. Then navigate to the package directory. Typically :

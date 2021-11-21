@@ -1,4 +1,6 @@
-notifbot/TOKENS.py
 **/.DS_Store
 ./.DS_Store
-
+.pytest_cache
+**/*.egg-info
+**/__pycache__
+dist/
