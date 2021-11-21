@@ -1,30 +1,23 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Sat Apr 27 18:02:18 2019.
 
 @author: Tristan Muscat
 """
-
-
 # =====================================================================================================================
 # Import et librairies
 # =====================================================================================================================
-
-import os
-
-import time
-import requests
 import json
-
-import numpy as np
-
-from fuzzywuzzy import process
-from slack_progress import SlackProgress
+import os
+import time
+from typing import Any
+from typing import Optional
 
 import inputmanager as im
-
-from typing import Any, Optional
+import numpy as np
+import requests
+from fuzzywuzzy import process
+from slack_progress import SlackProgress
 from typing_extensions import SupportsIndex
 
 # =====================================================================================================================
@@ -125,9 +118,7 @@ class NotifBot:
     # =====================================================================================================================
 
     @hybridmethod
-    def notify(
-        cls, str_message: str, str_channel: str, str_user: Optional[str] = None
-    ) -> None:
+    def notify(cls, str_message: str, str_channel: str, str_user: Optional[str] = None) -> None:
         """Allow to send a message via the slack API.
 
         This is a classmethod, it can be used to send a one-shot notification. More complex usage should require
@@ -157,12 +148,8 @@ class NotifBot:
     def _set_users(self) -> None:
         """Initialize the list of users."""
         # Getting the users.list from slack API and parsing the result.
-        response: requests.models.Response = requests.post(
-            "https://slack.com/api/users.list", headers=NotifBot.dict_headers
-        )
-        res: list[dict[str, Any]] = json.loads(response.content.decode("utf-8"))[
-            "members"
-        ]
+        response: requests.models.Response = requests.post("https://slack.com/api/users.list", headers=NotifBot.dict_headers)
+        res: list[dict[str, Any]] = json.loads(response.content.decode("utf-8"))["members"]
 
         # Storing all important information in a list of dictionnaries.
         self.lst_users = [
@@ -191,13 +178,9 @@ class NotifBot:
             "https://slack.com/api/conversations.list?types=im",
             headers=NotifBot.dict_headers,
         )
-        res: list[dict[str, Any]] = json.loads(response.content.decode("utf-8"))[
-            "channels"
-        ]
+        res: list[dict[str, Any]] = json.loads(response.content.decode("utf-8"))["channels"]
 
-        lst_channels: list[dict[str, str]] = [
-            {"ID": elt["user"], "Channel": elt["id"]} for elt in res
-        ]
+        lst_channels: list[dict[str, str]] = [{"ID": elt["user"], "Channel": elt["id"]} for elt in res]
 
         # For each channel, we look up a user with the same ID, when their is a match, the channel is set
         # in the list of users.
@@ -209,12 +192,8 @@ class NotifBot:
     def _set_public_channels(self) -> None:
         """Add every public channel."""
         # Getting the channels.list from the slack API and parsing the result.
-        response: requests.models.Response = requests.post(
-            "https://slack.com/api/conversations.list", headers=NotifBot.dict_headers
-        )
-        res: list[dict[str, Any]] = json.loads(response.content.decode("utf-8"))[
-            "channels"
-        ]
+        response: requests.models.Response = requests.post("https://slack.com/api/conversations.list", headers=NotifBot.dict_headers)
+        res: list[dict[str, Any]] = json.loads(response.content.decode("utf-8"))["channels"]
 
         # Storgin everything in a dictionnary.
         lst_public_channels: list[dict[str, str]] = [
@@ -261,16 +240,12 @@ class NotifBot:
             str_channel = self.get_user_id(str_user)
 
         # Retreiving the messages with slack API.
-        str_token: str = os.environ[
-            "OAUTH_TOKEN"
-        ] if bl_public else NotifBot.str_botauth
+        str_token: str = os.environ["OAUTH_TOKEN"] if bl_public else NotifBot.str_botauth
 
         response: requests.models.Response = requests.post(
             f"https://slack.com/api/conversations.history?token={str_token}&channel={str_channel}"
         )
-        dict_messages: list[dict[str, Any]] = json.loads(
-            response.content.decode("utf-8")
-        )["messages"]
+        dict_messages: list[dict[str, Any]] = json.loads(response.content.decode("utf-8"))["messages"]
 
         return dict_messages
 
@@ -288,14 +263,8 @@ class NotifBot:
             The channel ID associated to the user.
         """
         # We search trough the user list with fuzzysearch, retreiving several possible matchs.
-        lst_user_names: list[str] = [
-            elt["Real_name"]
-            for elt in self.lst_users
-            if isinstance(elt["Real_name"], str)
-        ]
-        lst_best_names: list[str] = process.extractBests(
-            str_user, lst_user_names, score_cutoff=80
-        )
+        lst_user_names: list[str] = [elt["Real_name"] for elt in self.lst_users if isinstance(elt["Real_name"], str)]
+        lst_best_names: list[str] = process.extractBests(str_user, lst_user_names, score_cutoff=80)
 
         # If we get more than one match, the user is prompted to pick the right one.
         if len(lst_best_names) > 1:
@@ -303,11 +272,9 @@ class NotifBot:
             for i in range(0, len(lst_best_names)):
                 print(f"{str(i + 1)} : {lst_best_names[i][0]}")
             print(f"{str(i + 2)} : Quit")
-            index_name: int = im.force_read(
-                im.read_numeric, "Your pick : ", True, 1, len(lst_best_names) + 1
-            )
+            index_name: int = im.force_read(im.read_numeric, "Your pick : ", True, 1, len(lst_best_names) + 1)
             if index_name == (i + 2):
-                raise SlackbotException("No match for {} user.".format(str_user))
+                raise SlackbotException(f"No match for {str_user} user.")
             str_user = lst_best_names[index_name - 1][0]
         # If their is only one match, then we get their channel ID.
         elif len(lst_best_names) == 1:
@@ -317,9 +284,7 @@ class NotifBot:
             raise SlackbotException(f"No match for {str_user} user.")
 
         # Looking up the channel ID in the user list.
-        str_channel: str = [
-            elt["Channel"] for elt in self.lst_users if elt["Real_name"] == str_user
-        ][0]
+        str_channel: str = [elt["Channel"] for elt in self.lst_users if elt["Real_name"] == str_user][0]
 
         # If the user exist but no channel is open with them.
         if not isinstance(str_channel, str):
@@ -417,10 +382,7 @@ class NotifBot:
             The value to add.
         """
         self.dict_sbars[str_name]["pbar"].pos = round(
-            (
-                self.dict_sbars[str_name]["pbar"].pos
-                + (int_value * 100 / self.dict_sbars[str_name]["pbar"].total)
-            ),
+            (self.dict_sbars[str_name]["pbar"].pos + (int_value * 100 / self.dict_sbars[str_name]["pbar"].total)),
             2,
         )
 
@@ -434,13 +396,9 @@ class NotifBot:
         int_value: int
             The value where to set the progress bar.
         """
-        self.dict_sbars[str_name]["pbar"].pos = round(
-            (int_value * 100 / self.dict_sbars[str_name]["pbar"].total), 2
-        )
+        self.dict_sbars[str_name]["pbar"].pos = round((int_value * 100 / self.dict_sbars[str_name]["pbar"].total), 2)
 
-    def progress_log(
-        self, str_name: str, str_log: str, bl_stack_log: Optional[bool] = True
-    ):
+    def progress_log(self, str_name: str, str_log: str, bl_stack_log: Optional[bool] = True):
         """Log an event into the progress bar (display under the title in slack).
 
         Parameters
@@ -453,15 +411,11 @@ class NotifBot:
             Should we erease all previous logged messages.
         """
         # The message is added to the progress bar.
-        self.dict_sbars[str_name]["pbar"].log(
-            f"{self.dict_sbars[str_name]['title']} - {str_log}"
-        )
+        self.dict_sbars[str_name]["pbar"].log(f"{self.dict_sbars[str_name]['title']} - {str_log}")
 
         # If we decide so, every logged message added before the new one is deleted.
         if not bl_stack_log:
-            self.dict_sbars[str_name]["pbar"]._msg_log = [
-                self.dict_sbars[str_name]["pbar"]._msg_log[-1]
-            ]
+            self.dict_sbars[str_name]["pbar"]._msg_log = [self.dict_sbars[str_name]["pbar"]._msg_log[-1]]
             self.dict_sbars[str_name]["pbar"]._update()
 
     def progress_delete(self, str_name: str) -> None:
