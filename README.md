@@ -3,19 +3,20 @@
 ![Tests](https://github.com/tristanmsct/Notifier/actions/workflows/tests.yml/badge.svg)
 ![Coverage](https://raw.githubusercontent.com/tristanmsct/Notifier/master/coverage.svg)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![PyPI version](https://badge.fury.io/py/notifier.svg)](https://badge.fury.io/py/notifier)
+[![PyPI version](https://badge.fury.io/py/notifbot.svg)](https://badge.fury.io/py/notifbot)
+
+## Disclaimer
+
+**/!\\** The Slack API is constantly moving and the documentation is not really up to date so some features will not work with the most recent Slack Bots.
+
+Sending messages will still work.
 
 ## Downloading and installing the module
 
-First download the whole thing and unzip it. Then navigate to the package directory. Typically :
-
-`$ cd ~/Downloads/Terminal`
-
-You can use the installer :
-
-`$ ./install`
-
-Or you can paste the "terminal" directory in the site-package of your python installation. The ./install file take care of that and install the package in your current python environment while also install all the dependencies.
+Simply run :
+```bash
+pip install notifbot
+```
 
 ## Setting up your slack app
 
@@ -37,19 +38,62 @@ OAUTH_TOKEN="xoxp-XXXX"
 
 The second token is used only to clean public channels in slack, so NotifBot can work without it for the most part.
 
-Now you need to grant your app the following permissions :
+The bot will need a lot of permission to post and manage messages, the Manifest for my application looks like that :
 
-```
-channels:history
-channels:read
-chat:write
-chat:write.public
-im:history
-im:read
-im:write
-incoming-webhook
-users:read
-users:write
+```yaml
+_metadata:
+  major_version: 1
+  minor_version: 1
+display_information:
+  name: Notifbot
+features:
+  bot_user:
+    display_name: Notifbot
+    always_online: true
+oauth_config:
+  scopes:
+    user:
+      - admin
+      - channels:history
+      - channels:read
+      - channels:write
+      - groups:history
+      - groups:read
+      - groups:write
+      - im:history
+      - im:read
+      - im:write
+    bot:
+      - calls:read
+      - calls:write
+      - channels:history
+      - channels:read
+      - chat:write
+      - chat:write.public
+      - dnd:read
+      - files:read
+      - groups:read
+      - im:history
+      - im:read
+      - im:write
+      - incoming-webhook
+      - mpim:history
+      - mpim:read
+      - mpim:write
+      - pins:write
+      - reactions:read
+      - reactions:write
+      - remote_files:read
+      - remote_files:share
+      - remote_files:write
+      - team:read
+      - users:read
+      - users:read.email
+      - users:write
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
 ```
 
 They are available in the "OAuth & Permissions" your slack application page.
