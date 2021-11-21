@@ -1,4 +1,4 @@
-# Notifier
+# Notifbot
 
 [![PyPI version](https://badge.fury.io/py/notifbot.svg)](https://badge.fury.io/py/notifbot)
 ![Python](https://img.shields.io/pypi/pyversions/notifbot)
@@ -102,7 +102,7 @@ They are available in the "OAuth & Permissions" your slack application page.
 
 You can give only specific permissions if you want but some features might not work.
 
-## How to use terminal
+## How to use Notifbot
 
 Content of the `demo.py` file :
 
