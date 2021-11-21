@@ -1,9 +1,11 @@
 # Notifier
 
+[![PyPI version](https://badge.fury.io/py/notifbot.svg)](https://badge.fury.io/py/notifbot)
+![Python](https://img.shields.io/pypi/pyversions/notifbot)
+![License](https://img.shields.io/pypi/l/notifbot)
 ![Tests](https://github.com/tristanmsct/Notifier/actions/workflows/tests.yml/badge.svg)
 ![Coverage](https://raw.githubusercontent.com/tristanmsct/Notifier/master/coverage.svg)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![PyPI version](https://badge.fury.io/py/notifbot.svg)](https://badge.fury.io/py/notifbot)
 
 ## Disclaimer
 
