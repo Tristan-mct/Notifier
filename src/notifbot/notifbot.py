@@ -88,7 +88,11 @@ class NotifBot:
         A dictionnary used to store and manage multiple progress bars.
     """
 
-    str_botauth: str = os.environ["BOTAUTH_TOKEN"]
+    str_botauth: str
+    try:
+        str_botauth = os.environ["BOTAUTH_TOKEN"]
+    except KeyError:
+        str_botauth = "XXX"
     dict_headers: dict[str, str] = {
         "Authorization": f"Bearer {str_botauth}",
         "Content-type": "application/json",
