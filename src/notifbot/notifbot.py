@@ -276,7 +276,7 @@ class NotifBot:
             for i in range(0, len(lst_best_names)):
                 print(f"{str(i + 1)} : {lst_best_names[i][0]}")
             print(f"{str(i + 2)} : Quit")
-            index_name: int = im.force_read(im.read_numeric, "Your pick : ", True, 1, len(lst_best_names) + 1) # type: ignore
+            index_name: int = im.force_read(im.read_numeric, "Your pick : ", True, 1, len(lst_best_names) + 1)  # type: ignore
             if index_name == (i + 2):
                 raise SlackbotException(f"No match for {str_user} user.")
             str_user = lst_best_names[index_name - 1][0]
